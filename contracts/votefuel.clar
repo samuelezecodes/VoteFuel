@@ -101,26 +101,28 @@
   (milestone-index uint)
   (updated-milestone { description: (string-utf8 200), amount: uint, approved: bool })
 )
-  (match (slice? milestones u0 milestone-index)
-    prefix 
-      (unwrap-panic 
-        (as-max-len? 
-          (concat 
-            prefix 
-            (unwrap-panic 
-              (as-max-len? 
-                (concat 
-                  (list updated-milestone) 
-                  (unwrap-panic (slice? milestones (+ milestone-index u1) (len milestones)))
-                ) 
-                u5
+  (let
+    (
+      (prefix (unwrap! (slice? milestones u0 milestone-index) milestones))
+      (suffix (unwrap! (slice? milestones (+ milestone-index u1) (len milestones)) milestones))
+    )
+    (unwrap-panic 
+      (as-max-len? 
+        (concat
+          prefix
+          (unwrap-panic 
+            (as-max-len? 
+              (concat 
+                (list updated-milestone)
+                suffix
               )
+              u5
             )
-          ) 
-          u5
+          )
         )
+        u5
       )
-    none milestones
+    )
   )
 )
 
