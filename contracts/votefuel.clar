@@ -10,6 +10,7 @@
 (define-constant ERR-NO-REFUND-ELIGIBLE (err u106))
 (define-constant ERR-ALREADY-REFUNDED (err u107))
 (define-constant ERR-PROJECT-SUCCESSFUL (err u108))
+(define-constant ERR-INVALID-INPUT (err u109))
 
 ;; Project structure
 (define-map projects
@@ -51,6 +52,12 @@
       (project-id (var-get next-project-id))
       (total-milestone-amount (fold + (map get-milestone-amount milestones) u0))
     )
+    ;; Validate inputs
+    (asserts! (> (len title) u0) ERR-INVALID-INPUT)
+    (asserts! (> (len description) u0) ERR-INVALID-INPUT)
+    (asserts! (> target-amount u0) ERR-INVALID-INPUT)
+    (asserts! (> deadline block-height) ERR-INVALID-INPUT)
+    
     ;; Validate milestone amounts
     (asserts! (>= target-amount total-milestone-amount) ERR-INSUFFICIENT-FUNDS)
     
@@ -146,6 +153,10 @@
       (current-contribution (default-to { amount: u0, refunded: false } 
         (map-get? contributions { project-id: project-id, contributor: tx-sender })))
     )
+    ;; Validate inputs
+    (asserts! (> project-id u0) ERR-INVALID-INPUT)
+    (asserts! (> stx-transferred u0) ERR-INVALID-INPUT)
+    
     ;; Validate project is active and not past deadline
     (asserts! (get is-active project) ERR-CAMPAIGN-CLOSED)
     (asserts! (< block-height (get deadline project)) ERR-CAMPAIGN-CLOSED)
@@ -174,6 +185,9 @@
       (contribution (unwrap! (map-get? contributions { project-id: project-id, contributor: tx-sender }) 
         ERR-NO-REFUND-ELIGIBLE))
     )
+    ;; Validate input
+    (asserts! (> project-id u0) ERR-INVALID-INPUT)
+    
     ;; Check refund eligibility
     (asserts! (is-refund-eligible project-id) ERR-PROJECT-SUCCESSFUL)
     (asserts! (not (get refunded contribution)) ERR-ALREADY-REFUNDED)
@@ -197,6 +211,9 @@
     (
       (project (unwrap! (map-get? projects { project-id: project-id }) ERR-PROJECT-NOT-FOUND))
     )
+    ;; Validate input
+    (asserts! (> project-id u0) ERR-INVALID-INPUT)
+    
     ;; Verify project has failed
     (asserts! (>= block-height (get deadline project)) ERR-CAMPAIGN-CLOSED)
     (asserts! (< (get raised-amount project) (get target-amount project)) ERR-PROJECT-SUCCESSFUL)
@@ -221,6 +238,10 @@
       (milestone-opt (get-milestone-by-index milestones milestone-index))
       (milestone (unwrap! milestone-opt ERR-INVALID-MILESTONE-INDEX))
     )
+    ;; Validate inputs
+    (asserts! (> project-id u0) ERR-INVALID-INPUT)
+    (asserts! (< milestone-index (len milestones)) ERR-INVALID-INPUT)
+    
     ;; Only project creator can approve milestones
     (asserts! (is-eq tx-sender (get creator project)) ERR-UNAUTHORIZED)
     (asserts! (not (get approved milestone)) ERR-MILESTONE-ALREADY-APPROVED)
@@ -244,6 +265,10 @@
       (milestone-opt (get-milestone-by-index milestones milestone-index))
       (milestone (unwrap! milestone-opt ERR-INVALID-MILESTONE-INDEX))
     )
+    ;; Validate inputs
+    (asserts! (> project-id u0) ERR-INVALID-INPUT)
+    (asserts! (< milestone-index (len milestones)) ERR-INVALID-INPUT)
+    
     ;; Validate milestone is approved
     (asserts! (get approved milestone) ERR-UNAUTHORIZED)
     (asserts! (is-eq tx-sender (get creator project)) ERR-UNAUTHORIZED)
