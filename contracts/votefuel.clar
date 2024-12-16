@@ -11,6 +11,7 @@
 (define-constant ERR-ALREADY-REFUNDED (err u107))
 (define-constant ERR-PROJECT-SUCCESSFUL (err u108))
 (define-constant ERR-INVALID-INPUT (err u109))
+(define-constant ERR-NOT-ALL-MILESTONES-COMPLETE (err u110))
 
 ;; Project structure
 (define-map projects
@@ -23,6 +24,7 @@
     raised-amount: uint,
     deadline: uint,
     is-active: bool,
+    is-complete: bool,
     milestones: (list 5 { description: (string-utf8 200), amount: uint, approved: bool })
   }
 )
@@ -38,6 +40,16 @@
 
 ;; Unique project ID counter
 (define-data-var next-project-id uint u0)
+
+;; Helper function to check if all milestones are approved
+(define-read-only (all-milestones-approved? (milestones (list 5 { description: (string-utf8 200), amount: uint, approved: bool })))
+  (is-eq (len (filter is-milestone-approved milestones)) (len milestones))
+)
+
+;; Helper function to check if a milestone is approved
+(define-read-only (is-milestone-approved (milestone { description: (string-utf8 200), amount: uint, approved: bool }))
+  (get approved milestone)
+)
 
 ;; Create a new crowdfunding project
 (define-public (create-project 
@@ -57,8 +69,6 @@
     (asserts! (> (len description) u0) ERR-INVALID-INPUT)
     (asserts! (> target-amount u0) ERR-INVALID-INPUT)
     (asserts! (> deadline block-height) ERR-INVALID-INPUT)
-    
-    ;; Validate milestone amounts
     (asserts! (>= target-amount total-milestone-amount) ERR-INSUFFICIENT-FUNDS)
     
     ;; Create project map entry
@@ -72,6 +82,7 @@
         raised-amount: u0,
         deadline: deadline,
         is-active: true,
+        is-complete: false,
         milestones: (map prepare-milestone milestones)
       }
     )
@@ -256,36 +267,35 @@
   )
 )
 
-;; Withdraw funds for an approved milestone
-(define-public (withdraw-milestone-funds (project-id uint) (milestone-index uint))
-  (let 
+;; Complete project function
+(define-public (complete-project (project-id uint))
+  (let
     (
       (project (unwrap! (map-get? projects { project-id: project-id }) ERR-PROJECT-NOT-FOUND))
-      (milestones (get milestones project))
-      (milestone-opt (get-milestone-by-index milestones milestone-index))
-      (milestone (unwrap! milestone-opt ERR-INVALID-MILESTONE-INDEX))
     )
     ;; Validate inputs
     (asserts! (> project-id u0) ERR-INVALID-INPUT)
-    (asserts! (< milestone-index (len milestones)) ERR-INVALID-INPUT)
     
-    ;; Validate milestone is approved
-    (asserts! (get approved milestone) ERR-UNAUTHORIZED)
+    ;; Only project creator can complete the project
     (asserts! (is-eq tx-sender (get creator project)) ERR-UNAUTHORIZED)
     
-    ;; Transfer milestone funds
-    (try! (stx-transfer? (get amount milestone) tx-sender (get creator project)))
+    ;; Check if project is active
+    (asserts! (get is-active project) ERR-CAMPAIGN-CLOSED)
+    
+    ;; Check if all milestones are approved
+    (asserts! (all-milestones-approved? (get milestones project)) ERR-NOT-ALL-MILESTONES-COMPLETE)
+    
+    ;; Update project status
+    (map-set projects
+      { project-id: project-id }
+      (merge project 
+        { 
+          is-active: false,
+          is-complete: true
+        }
+      )
+    )
     
     (ok true)
   )
-)
-
-;; Get project details
-(define-read-only (get-project-details (project-id uint))
-  (map-get? projects { project-id: project-id })
-)
-
-;; Get contribution details
-(define-read-only (get-contribution-details (project-id uint) (contributor principal))
-  (map-get? contributions { project-id: project-id, contributor: contributor })
 )
