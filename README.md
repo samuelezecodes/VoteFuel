@@ -1,8 +1,8 @@
-# StackFund: Decentralized Crowdfunding Platform on Stacks
+# VoteFuel: Decentralized Crowdfunding Platform on Stacks
 
 ## Overview
 
-StackFund is a decentralized crowdfunding platform built on the Stacks blockchain using Clarity smart contracts. The platform enables project creators to raise funds and manage milestone-based project funding with transparent governance.
+VoteFuel is a decentralized crowdfunding platform built on the Stacks blockchain using Clarity smart contracts. The platform enables project creators to raise funds and manage milestone-based project funding with transparent governance.
 
 ## Key Features
 
